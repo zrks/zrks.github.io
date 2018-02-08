@@ -82,6 +82,37 @@ Vagrant.configure("2") do |config|
 end
 ```
 
+What we have now are three vagrant boxes which we can launch. But before doing so we need to install mDNS package so that we can ping other hosts from private network using host names.
+In order to make this provisioning step 'separate' from each box definition (as we will need mDNS installed on each box) lets put it as last block in our Vagrantfile right before last end statement.
+
+```ruby
+...
+  config.vm.provision "shell", inline: <<-SHELL
+
+    # N.B. More about configuring mDNS:
+    #+ http://blog.uguu.waw.pl/2015/05/21/mdns-netbsd-linux-osx/
+
+    DISTRO=$(cat /etc/os-release | head -1 | grep -o '".*"'  | tr -d '"')
+
+    if [ "${DISTRO}" = "CentOS Linux" ]; then
+      yum update -y --quiet
+      yum install -y --quiet epel-release
+      yum install -y --quiet avahi avahi-tools nss-mdns
+      systemctl start avahi-daemon
+      systemctl enable avahi-daemon
+      service avahi-daemon start
+    fi
+
+    if [ "$DISTRO" = "Ubuntu" ]; then
+      apt-get update --quiet
+      apt-get install -y --quiet avahi-daemon avahi-utils libnss-mdns
+    fi
+
+  SHELL
+end # Last end statement of our Vagrantfile.
+```	
+
+
 As we have written Vagrantfile we should now be able to launch vagrant boxes and ping other hosts:
 ```bash
 ~/project-folder$ vagrant up && vagrant ssh controller
